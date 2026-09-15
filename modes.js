@@ -9,6 +9,7 @@
   {name:'마스터',bpm:152,step:.5,desc:'16분음표까지 도전'}
  ];
  const keys=['KeyS','KeyD','KeyF','KeyJ','KeyK','KeyL'];
+ let musicTimer=null;
  let mode='pocket',state=null,frameId=0,generation=0,records={};
  try { records=JSON.parse(localStorage.getItem('rp-extra-best')||'{}')||{}; } catch {}
  const nav=document.createElement('nav');nav.className='game-tabs';nav.setAttribute('aria-label','게임 종류');
@@ -18,7 +19,7 @@
  panel.innerHTML='<div id="extraMenu"><div class="intro"><div><p class="eyebrow">RHYTHM POCKET / NEW PLAY</p><h1 id="extraTitle"></h1><p id="extraHelp"></p></div></div><div class="section-title"><h2>난이도 선택</h2><button class="quiet" id="extraSettings">타이밍 설정 ⚙</button></div><div id="extraLevels" class="extra-levels"></div></div><div id="extraPlay" hidden><div class="game-top"><button id="extraBack" class="quiet">← 난이도 선택</button><strong id="extraLabel"></strong><button id="extraPause" class="quiet">Ⅱ 일시정지</button></div><div class="stats"><div><small>SCORE</small><b id="extraScore">0</b></div><div><small>COMBO</small><b id="extraCombo">0</b></div><div><small>PROGRESS</small><b id="extraProgress">0%</b></div></div><div class="extra-arena"><canvas id="extraCanvas" width="900" height="540" aria-label="다가오는 노트와 판정선"></canvas><div id="extraFeedback" role="status">준비!</div></div><div id="extraPads" class="extra-pads"></div><p class="extra-hint" id="extraHint"></p></div><dialog id="extraResult"><p class="eyebrow">NICE RHYTHM!</p><h2 id="extraResultTitle"></h2><p id="extraSummary"></p><p id="extraDetails"></p><button id="extraRetry" class="primary">다시 도전</button><button id="extraDone" class="quiet">난이도 선택</button></dialog>';
  nav.after(panel);
  function silence(){for(const n of nodes){try{n.stop();}catch{}}nodes.clear();}
- function cleanup(){generation++;cancelAnimationFrame(frameId);state=null;silence();$('extraResult').close();}
+ function cleanup(){clearInterval(musicTimer);musicTimer=null;generation++;cancelAnimationFrame(frameId);state=null;silence();$('extraResult').close();}
  function menu(){cleanup();$('extraMenu').hidden=false;$('extraPlay').hidden=true;drawMenu();}
  function drawMenu(){
   $('extraTitle').textContent=mode==='six'?'여섯 레인, 나만의 리듬.':'둥! 딱! 박자를 두드려요.';
@@ -57,7 +58,7 @@
   $('extraPads').innerHTML=labels.map((k,i)=>`<button data-pad="${mode==='six'?i:[1,0,0,1][i]}" class="${mode==='drum'?([0,3].includes(i)?'rim':'center'):''}">${k}</button>`).join('');
   panel.querySelectorAll('[data-pad]').forEach(b=>{b.onpointerdown=e=>{e.preventDefault();hit(+b.dataset.pad);};b.onclick=e=>{if(e.detail===0)hit(+b.dataset.pad);};});
   $('extraHint').textContent=mode==='six'?'S D F / J K L · 노트가 아래 선에 닿으면 입력 · ESC 일시정지':'빨강 둥 = D / K · 파랑 딱 = S / L · ESC 일시정지';
-  frame();
+  musicTimer=setInterval(scheduleExtra,25);scheduleExtra();frame();
  }
  function feedback(message){$('extraFeedback').textContent=message;if(state)state.feedbackUntil=audio.currentTime+.5;}
  function judge(note,result){note.done=true;state[result]++;state.reactions??={};state.reactions[note.lane]={beat:(audio.currentTime-state.start)/state.spb,mood:result==='miss'?'sad':'happy'};if(result==='miss')state.combo=0;else{state.combo++;state.max=Math.max(state.max,state.combo);state.score+=result==='perfect'?1000:650;}feedback(result.toUpperCase());}
@@ -68,16 +69,22 @@
   const note=state.notes.find(n=>!n.done&&n.lane===lane&&Math.abs(n.beat*state.spb-time)<=.16);
   if(note)judge(note,Math.abs(note.beat*state.spb-time)<=.065?'perfect':'good');
   else {state.combo=0;feedback('빈 타격');}
-  if(mode==='drum')drum(audio.currentTime,lane===0?'kick':'snare');else tone(hz(60+lane*2),audio.currentTime,.08,.13);
+  if(mode==='drum')PocketMusic.taiko(audio.currentTime,lane===1,.65);else tone(hz(60+lane*2),audio.currentTime,.08,.13);
  }
- function pauseExtra(){if(!state)return;if(state.paused){state.start+=audio.currentTime-state.pauseAt;state.paused=false;$('extraPause').textContent='Ⅱ 일시정지';}else{state.pauseAt=audio.currentTime;state.paused=true;silence();$('extraPause').textContent='▶ 계속하기';feedback('잠깐 쉬는 중');}}
+ function pauseExtra(){if(!state)return;if(state.paused){state.start+=audio.currentTime-state.pauseAt;state.paused=false;$('extraPause').textContent='Ⅱ 일시정지';}else{state.pauseAt=audio.currentTime;state.tick=Math.max(0,Math.ceil((state.pauseAt-state.start)/state.spb*4));state.paused=true;silence();$('extraPause').textContent='▶ 계속하기';feedback('잠깐 쉬는 중');}}
  document.addEventListener('keydown',e=>{if(mode==='pocket'||!state)return;if(e.code==='Escape'){e.preventDefault();if(!e.repeat)pauseExtra();return;}const index=keys.indexOf(e.code);if(index<0)return;e.preventDefault();if(e.repeat)return;if(mode==='six')hit(index);else if([0,1,4,5].includes(index))hit(index===1||index===4?0:1);});
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&state&&!state.paused)pauseExtra();});
  window.addEventListener('blur',()=>{if(state&&!state.paused)pauseExtra();});
+ function scheduleExtra(){
+  if(!state||state.paused)return;
+  const r=state,now=audio.currentTime;
+  while(r.tick<272){const time=r.start+r.tick*.25*r.spb;if(time>now+.12)break;
+   if(time>=now)PocketMusic.tick({tick:r.tick,time,spb:r.spb,notes:r.notes,style:r.level,mode,total:68});r.tick++;
+  }
+ }
  function frame(){
   if(!state)return;const r=state,now=r.paused?r.pauseAt:audio.currentTime,beat=(now-r.start)/r.spb;
   if(!r.paused){
-   while(r.tick<=272&&r.start+r.tick*.25*r.spb<now+.1){const t=r.start+r.tick*.25*r.spb;if(t>=now){const k=r.tick;if(k%4===0)drum(t,k%8===0?'kick':'snare');if(k>=16&&k%2===0){tone(hz(48+[0,7,3,10][Math.floor(k/16)%4]),t,.15,.08);tone(hz(72+[0,2,7,5,3,7,10,7][Math.floor(k/2)%8]),t,.1,.05,'sine');}if(k<16&&k%4===0)tone(900,t,.05,.1);}r.tick++;}
    for(const n of r.notes)if(!n.done&&(now-r.start-offset/1000)-n.beat*r.spb>.16)judge(n,'miss');
    if(beat>=69){finish();return;}
    if(beat<4)feedback(`준비 · ${Math.max(1,4-Math.floor(Math.max(0,beat)))}`);else if(now>r.feedbackUntil)$('extraFeedback').textContent=r.combo>=10?'리듬을 이어가요!':'';
@@ -110,7 +117,7 @@
    c.fillStyle='#ff817e';c.fillText('● 가운데  D / K',350,465);c.fillStyle='#73d4ed';c.fillText('● 테두리  S / L',610,465);
   }
  }
- function finish(){const r=state;silence();const accuracy=Math.round((r.perfect+r.good*.65)/r.notes.length*100),key=mode+r.level;const rank=accuracy>=95?'S':accuracy>=85?'A':accuracy>=70?'B':'C';
+ function finish(){clearInterval(musicTimer);musicTimer=null;const r=state;silence();const accuracy=Math.round((r.perfect+r.good*.65)/r.notes.length*100),key=mode+r.level;const rank=accuracy>=95?'S':accuracy>=85?'A':accuracy>=70?'B':'C';
   if(!records[key]||records[key].score<r.score){records[key]={score:r.score,accuracy};try{localStorage.setItem('rp-extra-best',JSON.stringify(records));}catch{}}
   $('extraResultTitle').textContent=`${rank} · ${levels[r.level].name} 완료!`;$('extraSummary').textContent=`${r.score.toLocaleString()}점 · 정확도 ${accuracy}% · 최대 ${r.max}콤보`;$('extraDetails').textContent=`PERFECT ${r.perfect} / GOOD ${r.good} / MISS ${r.miss}`;
   state=null;$('extraRetry').onclick=()=>begin(r.level);$('extraResult').showModal();

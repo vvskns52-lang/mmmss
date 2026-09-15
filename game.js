@@ -54,24 +54,8 @@ async function start(mode='play'){
  $('menu').hidden=true;$('play').hidden=false;$('stageLabel').textContent=`0${selected+1} / ${s.name}${mode==='demo'?' · 시범':practice?' · 연습':''}`;$('sceneName').textContent=s.name;$('genre').textContent=`${s.genre} · ${Math.round(60/spb)} BPM`;$('instruction').textContent=s.hint;$('judgement').textContent=mode==='demo'?'자동 시범 · 박자를 눈과 귀로 익혀요':'첫 네 박은 듣기만 해요';$('pause').textContent='Ⅱ 일시정지';$('tap').disabled=mode==='demo';$('tap').innerHTML=mode==='demo'?'시범 연주 중':'탭! <kbd>SPACE</kbd>';$('arena').classList.remove('hit','miss','fever');$('progressLabel').textContent=mode==='demo'?'AUTO DEMO':'PROGRESS';updateScene(0);updateStats();loop=setInterval(schedule,25);schedule();raf=requestAnimationFrame(frame);starting=false;
 }
 function musicTick(tick,time){
- const b=tick/4,step=tick%16,bar=Math.max(0,Math.floor((b-4)/4)),s=STAGES[sceneFor(run.index,bar)];
- if(b<4){if(tick%4===0)tone(tick===0?1050:790,time,.08,.18,'sine');return;}
- const chord=[0,5,3,7][Math.floor(bar/2)%4],minor=[1,2,3].includes(sceneFor(run.index,bar));
- const id=sceneFor(run.index,bar),phase=Math.floor(bar/4),ending=bar%4===3;
- const kicks=[[0,8],[0,6,10],[0,4,8,12],[0,7,10],[0,6,8,14]][id];
- if(kicks.includes(step))drum(time,'kick');
- if((id===4?[4,11]:[4,12]).includes(step))drum(time,'snare');
- if(step%2===0&&(phase>0||step%4===2))drum(time,'hat');
- if(ending&&step>=14){drum(time,'hat');if(id===3)tone(hz(53+(step-14)*3),time,.10,.10,'triangle');}
- if(step%4===0)tone(hz(s.root-24+chord+(step===12?7:0)),time,run.spb*.65,.18,'triangle');
- if(step===0||step===10)[0,minor?3:4,7,10].forEach(n=>tone(hz(s.root+chord+n),time,run.spb*.7,.023,s.wave));
- if(step%2===0&&!(phase===0&&step%4===2)&&!(ending&&step===14)){const index=(tick/2+Math.floor(bar/4)*2)%s.melody.length;const octave=bar%8>=6?12:0;const note=hz(s.root+12+s.melody[index]+octave);tone(note,time,run.spb*(id===1?.48:.34),s.wave==='square'||s.wave==='sawtooth'?.024:.065,s.wave);if(phase>=2)tone(note/2,time+.008,run.spb*.5,.018,'sine');}
- if(run.combo>=8&&step%4===2)tone(hz(s.root+24+s.melody[(step/2)%8]),time,.10,.025,'sine');
- const target=run.notes.find(n=>Math.abs(n.beat-b)<.001);
- if(target&&guideSound)tone(target.hold?740:target.off?1480:1245,time,.065,.09,'sine');
- const cue=run.notes.find(n=>Math.abs(n.beat-.5-b)<.001);
- if(cue&&guideSound)tone(cue.hold?370:622,time,.055,.065,'sine');
- if(guideSound&&run.notes.some(n=>n.hold&&Math.abs(n.beat+n.hold-b)<.001))tone(1865,time,.075,.08,'sine');
+ const bar=Math.max(0,Math.floor((tick/4-4)/4));
+ PocketMusic.tick({tick,time,spb:run.spb,notes:run.notes,style:sceneFor(run.index,bar),mode:'pocket',total:run.total});
 }
 function schedule(){if(!run||run.paused||audio.currentTime<run.resumeUntil)return;while(run.nextTick/4<run.total){const time=run.start+run.nextTick/4*run.spb;if(time>audio.currentTime+.12)break;if(time>=audio.currentTime-.02)musicTick(run.nextTick,time);run.nextTick++;}}
 function beatNow(){return (audio.currentTime-run.start)/run.spb;}
