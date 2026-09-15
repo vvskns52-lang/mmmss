@@ -1,0 +1,35 @@
+/* Keep touch targets reachable in both tablet orientations, including browser chrome. */
+html{scroll-padding-bottom:env(safe-area-inset-bottom,0px)}
+button{-webkit-tap-highlight-color:transparent}
+#tap,.extra-pads button{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.extra-pads button.pressed{transform:translateY(3px);filter:brightness(1.22);box-shadow:inset 0 0 0 3px #fff7da}
+@media(max-width:1400px){
+ main{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+ .quiet{min-height:44px}.game-tabs button{min-height:48px}
+ .extra-pads{gap:10px;padding-bottom:env(safe-area-inset-bottom,0px)}
+ .extra-pads button{min-height:88px;font-size:22px}
+ .extra-hint{font-size:13px;line-height:1.5}
+ #tap{min-height:88px;touch-action:none}
+ .extra-playing header,.play-active header{height:48px}
+ .extra-playing .game-tabs,.play-active .game-tabs{padding:6px 0;gap:6px}
+ .extra-playing .game-tabs button,.play-active .game-tabs button{padding:8px;min-height:44px}
+ .extra-playing .game-top{margin-top:4px;min-height:44px}
+ .extra-playing .stats{padding:8px 10px}
+ .extra-playing .stats b{font-size:24px}
+ .extra-playing .extra-arena{width:min(100%,calc((100dvh - 310px) * 1.666667));margin:0 auto}
+ .extra-playing .extra-pads{margin-top:10px}
+ .extra-playing .extra-hint{margin:7px 0;padding-bottom:4px}
+ .play-active .play-controls{position:sticky;bottom:0;background:#111c2af5;padding:8px 0 max(8px,env(safe-area-inset-bottom));z-index:4}
+ .play-active .play-controls .sub{margin:5px 0}
+}
+@media(max-width:1400px) and (orientation:landscape){
+ .extra-playing .extra-pads button{min-height:72px}
+ .extra-playing .extra-arena{width:min(100%,calc((100dvh - 335px) * 1.666667))}
+ .play-active #world{max-height:clamp(130px,calc(100dvh - 440px),280px);object-fit:contain}
+ .play-active .arena-title{padding-top:8px;padding-bottom:10px}
+ .play-active .arena-title h2{font-size:20px}
+ .play-active .stats{padding:6px 10px}
+ .play-active #tap{min-height:64px;padding:12px}
+}
+
+

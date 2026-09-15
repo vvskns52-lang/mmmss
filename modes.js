@@ -19,7 +19,7 @@
  panel.innerHTML='<div id="extraMenu"><div class="intro"><div><p class="eyebrow">RHYTHM POCKET / NEW PLAY</p><h1 id="extraTitle"></h1><p id="extraHelp"></p></div></div><div class="section-title"><h2>난이도 선택</h2><button class="quiet" id="extraSettings">타이밍 설정 ⚙</button></div><div id="extraLevels" class="extra-levels"></div></div><div id="extraPlay" hidden><div class="game-top"><button id="extraBack" class="quiet">← 난이도 선택</button><strong id="extraLabel"></strong><button id="extraPause" class="quiet">Ⅱ 일시정지</button></div><div class="stats"><div><small>SCORE</small><b id="extraScore">0</b></div><div><small>COMBO</small><b id="extraCombo">0</b></div><div><small>PROGRESS</small><b id="extraProgress">0%</b></div></div><div class="extra-arena"><canvas id="extraCanvas" width="900" height="540" aria-label="다가오는 노트와 판정선"></canvas><div id="extraFeedback" role="status">준비!</div></div><div id="extraPads" class="extra-pads"></div><p class="extra-hint" id="extraHint"></p></div><dialog id="extraResult"><p class="eyebrow">NICE RHYTHM!</p><h2 id="extraResultTitle"></h2><p id="extraSummary"></p><p id="extraDetails"></p><button id="extraRetry" class="primary">다시 도전</button><button id="extraDone" class="quiet">난이도 선택</button></dialog>';
  nav.after(panel);
  function silence(){for(const n of nodes){try{n.stop();}catch{}}nodes.clear();}
- function cleanup(){clearInterval(musicTimer);musicTimer=null;generation++;cancelAnimationFrame(frameId);state=null;silence();$('extraResult').close();}
+ function cleanup(){document.body.classList.remove('extra-playing');clearInterval(musicTimer);musicTimer=null;generation++;cancelAnimationFrame(frameId);state=null;silence();$('extraResult').close();}
  function menu(){cleanup();$('extraMenu').hidden=false;$('extraPlay').hidden=true;drawMenu();}
  function drawMenu(){
   $('extraTitle').textContent=mode==='six'?'여섯 레인, 나만의 리듬.':'둥! 딱! 박자를 두드려요.';
@@ -52,12 +52,19 @@
   try{await initAudio();}catch{$('extraHelp').textContent='소리를 시작하지 못했어요. 다시 눌러 주세요.';return;}
   if(token!==generation)return;
   const l=levels[level];state={level,notes:chartFor(level,mode),start:audio.currentTime+.2,spb:60/l.bpm,tick:0,score:0,combo:0,max:0,perfect:0,good:0,miss:0,paused:false,feedbackUntil:0};
+  document.body.classList.add('extra-playing');window.scrollTo(0,0);
   $('extraMenu').hidden=true;$('extraPlay').hidden=false;$('extraLabel').textContent=`${mode==='six'?'6키':'태고'} · ${l.name} · ${l.bpm} BPM`;$('extraPause').textContent='Ⅱ 일시정지';
   const labels=mode==='six'?['S','D','F','J','K','L']:['S · 딱','D · 둥','K · 둥','L · 딱'];
   $('extraPads').style.setProperty('--pads',labels.length);
   $('extraPads').innerHTML=labels.map((k,i)=>`<button data-pad="${mode==='six'?i:[1,0,0,1][i]}" class="${mode==='drum'?([0,3].includes(i)?'rim':'center'):''}">${k}</button>`).join('');
-  panel.querySelectorAll('[data-pad]').forEach(b=>{b.onpointerdown=e=>{e.preventDefault();hit(+b.dataset.pad);};b.onclick=e=>{if(e.detail===0)hit(+b.dataset.pad);};});
-  $('extraHint').textContent=mode==='six'?'S D F / J K L · 노트가 아래 선에 닿으면 입력 · ESC 일시정지':'빨강 둥 = D / K · 파랑 딱 = S / L · ESC 일시정지';
+  panel.querySelectorAll('[data-pad]').forEach(b=>{
+   const pointers=new Set();
+   b.onpointerdown=e=>{if(e.pointerType==='mouse'&&e.button!==0)return;e.preventDefault();pointers.add(e.pointerId);b.setPointerCapture?.(e.pointerId);b.classList.add('pressed');hit(+b.dataset.pad);};
+   const release=e=>{pointers.delete(e.pointerId);if(!pointers.size)b.classList.remove('pressed');};
+   b.onpointerup=release;b.onpointercancel=release;b.onlostpointercapture=release;
+   b.oncontextmenu=e=>e.preventDefault();b.onclick=e=>{if(e.detail===0)hit(+b.dataset.pad);};
+  });
+  $('extraHint').textContent=mode==='six'?'아래 6개 버튼을 터치 · 동시치기는 두 손가락 · 키보드 S D F / J K L':'빨강 = 둥 버튼 · 파랑 = 딱 버튼 · 양손으로 번갈아 터치';
   musicTimer=setInterval(scheduleExtra,25);scheduleExtra();frame();
  }
  function feedback(message){$('extraFeedback').textContent=message;if(state)state.feedbackUntil=audio.currentTime+.5;}
@@ -71,7 +78,7 @@
   else {state.combo=0;feedback('빈 타격');}
   if(mode==='drum')PocketMusic.taiko(audio.currentTime,lane===1,.65);else tone(hz(60+lane*2),audio.currentTime,.08,.13);
  }
- function pauseExtra(){if(!state)return;if(state.paused){state.start+=audio.currentTime-state.pauseAt;state.paused=false;$('extraPause').textContent='Ⅱ 일시정지';}else{state.pauseAt=audio.currentTime;state.tick=Math.max(0,Math.ceil((state.pauseAt-state.start)/state.spb*4));state.paused=true;silence();$('extraPause').textContent='▶ 계속하기';feedback('잠깐 쉬는 중');}}
+ function pauseExtra(){panel.querySelectorAll('.pressed').forEach(b=>b.classList.remove('pressed'));if(!state)return;if(state.paused){state.start+=audio.currentTime-state.pauseAt;state.paused=false;$('extraPause').textContent='Ⅱ 일시정지';}else{state.pauseAt=audio.currentTime;state.tick=Math.max(0,Math.ceil((state.pauseAt-state.start)/state.spb*4));state.paused=true;silence();$('extraPause').textContent='▶ 계속하기';feedback('잠깐 쉬는 중');}}
  document.addEventListener('keydown',e=>{if(mode==='pocket'||!state)return;if(e.code==='Escape'){e.preventDefault();if(!e.repeat)pauseExtra();return;}const index=keys.indexOf(e.code);if(index<0)return;e.preventDefault();if(e.repeat)return;if(mode==='six')hit(index);else if([0,1,4,5].includes(index))hit(index===1||index===4?0:1);});
  document.addEventListener('visibilitychange',()=>{if(document.hidden&&state&&!state.paused)pauseExtra();});
  window.addEventListener('blur',()=>{if(state&&!state.paused)pauseExtra();});
