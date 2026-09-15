@@ -31,8 +31,8 @@ const PocketMusic=(()=>{
   tone(rim?960:102,time,rim?.045:.27,(rim?.09:.18)*gain,'sine');tone(rim?1560:167,time,rim?.028:.16,.06*gain,'triangle');tone(rim?2300:235,time,.04,.022*gain,'sine');noise(time,rim?.02:.035,.045*gain,rim?4200:850);
  }
  function percussion(time,kind,velocity=1){
-  if(kind==='kick'){const o=audio.createOscillator(),g=audio.createGain();o.frequency.setValueAtTime(135,time);o.frequency.exponentialRampToValueAtTime(44,time+.1);g.gain.setValueAtTime(.34*velocity,time);g.gain.exponentialRampToValueAtTime(.0001,time+.29);o.connect(g);g.connect(master);track(o,g);o.start(time);o.stop(time+.3);noise(time,.012,.025*velocity,2800);}
-  else if(kind==='snare'){noise(time,.12,.10*velocity,1700);tone(185,time,.075,.055*velocity,'triangle');noise(time+.012,.055,.045*velocity,3600);}
+  if(kind==='kick'){const o=audio.createOscillator(),g=audio.createGain();o.frequency.setValueAtTime(135,time);o.frequency.exponentialRampToValueAtTime(44,time+.1);g.gain.setValueAtTime(.30*velocity,time);g.gain.exponentialRampToValueAtTime(.0001,time+.29);o.connect(g);g.connect(master);track(o,g);o.start(time);o.stop(time+.3);noise(time,.012,.025*velocity,2800);}
+  else if(kind==='snare'){noise(time,.12,.095*velocity,1700);tone(185,time,.075,.055*velocity,'triangle');noise(time+.012,.055,.045*velocity,3600);}
   else if(kind==='open')noise(time,.16,.032*velocity,6800);
   else if(kind==='hat')noise(time,.032,.04*velocity,7200);
   else if(kind==='shaker')noise(time,.045,.021*velocity,5100);
@@ -55,23 +55,23 @@ const PocketMusic=(()=>{
   if(!quiet&&phase===3&&step===11)percussion(time,'snare',.22);
   const bassSteps=p===1||p===4?[0,6,8,14]:[0,4,8,11,14];
   if(bassSteps.includes(step)&&(!quiet||step===0)){
-   const degree=chord+(step===11?4:step===14?6:0);voice(note(root-24,scale,degree),time,spb*(step===11?.38:.8),.17*energy,'bass');
+   const degree=chord+(step===11?4:step===14?6:0);voice(note(root-24,scale,degree),time,spb*(step===11?.38:.8),.19*energy,'bass');
   }
   // Diatonic seventh/ninth voicings keep bass, chords and melody in the same key.
-  if(step===0){for(const [i,d] of [0,2,4,6].entries())voice(note(root,scale,chord+d)-12,time,spb*3.6,.031*energy,'pad',(i-1.5)*.23);}
-  if([2,10].includes(step)&&!quiet){for(const [i,d] of [2,4,8].entries())voice(note(root,scale,chord+d),time+i*.006,spb*.75,.024*energy,'piano',(i-1)*.3);}
-  if(phase>0&&step%2===1&&!ending){const d=[0,4,2,6,4,8,6,2][Math.floor(step/2)];voice(note(root+12,scale,chord+d),time,spb*.28,.022*energy,'pluck',step%4===1?-.55:.55);}
+  if(step===0){for(const [i,d] of [0,2,4,6].entries())voice(note(root,scale,chord+d)-12,time,spb*3.6,.042*energy,'pad',(i-1.5)*.23);}
+  if([2,10].includes(step)&&!quiet){for(const [i,d] of [2,4,8].entries())voice(note(root,scale,chord+d),time+i*.006,spb*.75,.034*energy,'piano',(i-1)*.3);}
+  if(phase>0&&step%2===1&&!ending){const d=[0,4,2,6,4,8,6,2][Math.floor(step/2)];voice(note(root+12,scale,chord+d),time,spb*.28,.030*energy,'pluck',step%4===1?-.55:.55);}
   const targets=notes.filter(n=>Math.abs(n.beat-beat)<.001),phrase=motifs[p];
   for(const [i,n] of targets.entries()){
    // The foreground onset always stays exactly on the playable note's timestamp.
    const degree=mode==='six'?[0,1,2,3,4,7][n.lane]:phrase[(Math.floor((beat-4)*2)+Math.floor(bar/4)*2)%8];
    const pitch=note(root+12,scale,chord+degree+(phase===3&&bar%2===1?7:0));
    if(mode==='drum')taiko(time,n.lane===1,.55/Math.sqrt(targets.length));
-   if(mode!=='drum'||i===0)voice(pitch,time,n.hold?n.hold*spb:spb*(instrument==='bell'?1.25:.8),(mode==='drum'?.085:.125)/Math.sqrt(targets.length),instrument,mode==='six'?(n.lane-2.5)*.12:0,targets.length===1&&step%4===0?spb*.75:0);
+   if(mode!=='drum'||i===0)voice(pitch,time,n.hold?n.hold*spb:spb*(instrument==='bell'?1.25:.8),(mode==='drum'?.115:.185)/Math.sqrt(targets.length),instrument,mode==='six'?(n.lane-2.5)*.12:0,targets.length===1&&step%4===0?spb*.75:0);
   }
-  if(!targets.length&&[6,14].includes(step)&&!quiet&&!ending)voice(note(root+12,scale,chord+phrase[(bar+step/2)%8]),time,spb*.6,.047,instrument,step===6?-.35:.35,spb*.75);
+  if(!targets.length&&[6,14].includes(step)&&!quiet&&!ending)voice(note(root+12,scale,chord+phrase[(bar+step/2)%8]),time,spb*.6,.062,instrument,step===6?-.35:.35,spb*.75);
   if(mode==='pocket'&&guideSound&&notes.some(n=>n.hold&&Math.abs(n.beat+n.hold-beat)<.001))voice(note(root+24,scale,chord+4),time,.2,.07,'bell');
-  if(ending&&step===0)for(const [i,d] of [0,2,4,7].entries())voice(note(root,scale,d),time+i*.012,spb*3.8,.037,'piano',(i-1.5)*.25);
+  if(ending&&step===0)for(const [i,d] of [0,2,4,7].entries())voice(note(root,scale,d),time+i*.012,spb*3.8,.05,'piano',(i-1.5)*.25);
  }
  return {tick,taiko};
 })();

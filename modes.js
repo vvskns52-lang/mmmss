@@ -9,6 +9,16 @@
   {name:'마스터',bpm:152,step:.5,desc:'16분음표까지 도전'}
  ];
  const keys=['KeyS','KeyD','KeyF','KeyJ','KeyK','KeyL'];
+ // 6키는 마디마다 리듬 꼴을 정해 둔다. 쉬는 박이 남아 있어야 손을 옮길 시간이 생긴다.
+ const sixBars=[
+  [[0,2]],
+  [[0,1,2,3]],
+  [[0,1,2,3.5]],
+  [[0,1,2,3],[0,1,1.5,2,3],[0,.5,1,2,2.5,3],[0,1,2,2.5,3,3.5]],
+  [[0,.5,1,2,3],[0,1,1.5,2,2.5,3],[0,.5,1,2,2.5,3,3.5],[0,1,1.5,2,3,3.5]],
+  [[0,.5,1,1.5,2,3],[0,.5,1,2,2.5,3,3.5],[0,.5,1,1.5,2,2.5,3],[0,.5,1,1.75,2.5,3,3.5]]
+ ];
+ const sixLanes=[0,2,1,3,5,4,2,4,1,5,0,3],sixChordBars=[0,0,0,4,2,1];
  let musicTimer=null;
  let mode='pocket',state=null,frameId=0,generation=0,records={};
  try { records=JSON.parse(localStorage.getItem('rp-extra-best')||'{}')||{}; } catch {}
@@ -16,7 +26,7 @@
  nav.innerHTML='<button data-game="pocket" aria-pressed="true">♪ 리듬 포켓</button><button data-game="six" aria-pressed="false">▥ 6키 리듬</button><button data-game="drum" aria-pressed="false">◉ 태고 리듬</button>';
  document.querySelector('header').after(nav);
  const panel=document.createElement('section');panel.id='extraMode';panel.hidden=true;
- panel.innerHTML='<div id="extraMenu"><div class="intro"><div><p class="eyebrow">RHYTHM POCKET / NEW PLAY</p><h1 id="extraTitle"></h1><p id="extraHelp"></p></div></div><div class="section-title"><h2>테마 · 난이도 선택</h2><button class="quiet" id="extraSettings">타이밍 설정 ⚙</button></div><div id="extraLevels" class="extra-levels"></div></div><div id="extraPlay" hidden><div class="game-top"><button id="extraBack" class="quiet">← 테마 · 난이도 선택</button><strong id="extraLabel"></strong><button id="extraPause" class="quiet">Ⅱ 일시정지</button></div><div class="stats"><div><small>SCORE</small><b id="extraScore">0</b></div><div><small>COMBO</small><b id="extraCombo">0</b></div><div><small>PROGRESS</small><b id="extraProgress">0%</b></div></div><div class="extra-arena"><canvas id="extraCanvas" width="900" height="540" aria-label="다가오는 노트와 판정선"></canvas><div id="extraFeedback" role="status">준비!</div></div><div id="extraPads" class="extra-pads"></div><p class="extra-hint" id="extraHint"></p></div><dialog id="extraResult"><p class="eyebrow">NICE RHYTHM!</p><h2 id="extraResultTitle"></h2><p id="extraSummary"></p><p id="extraDetails"></p><button id="extraRetry" class="primary">다시 도전</button><button id="extraDone" class="quiet">테마 · 난이도 선택</button></dialog>';
+ panel.innerHTML='<div id="extraMenu"><div class="intro"><div><p class="eyebrow">RHYTHM POCKET / NEW PLAY</p><h1 id="extraTitle"></h1><p id="extraHelp"></p></div></div><div class="section-title"><h2>테마 · 난이도 선택</h2><button class="quiet" id="extraSettings">타이밍 설정 ⚙</button></div><div id="extraLevels" class="extra-levels"></div></div><div id="extraPlay" hidden><div class="game-top"><button id="extraBack" class="quiet">← 테마 · 난이도 선택</button><strong id="extraLabel"></strong><button id="extraPause" class="quiet">Ⅱ 일시정지</button></div><div class="stats"><div><small>SCORE</small><b id="extraScore">0</b></div><div><small>COMBO</small><b id="extraCombo">0</b></div><div><small>PROGRESS</small><b id="extraProgress">0%</b></div></div><div class="extra-arena"><canvas id="extraCanvas" width="900" height="540" aria-label="다가오는 노트와 판정선"></canvas><div id="extraFeedback" role="status">준비!</div></div><div id="extraPads" class="extra-pads"></div><p class="extra-hint" id="extraHint"></p></div><dialog id="extraResult"><p class="eyebrow">NICE RHYTHM!</p><h2 id="extraResultTitle"></h2><p id="extraSummary"></p><p id="extraDetails"></p><p id="extraTip" class="next-tip"></p><button id="extraNext" class="primary">다음 라운드 →</button><button id="extraRetry" class="quiet">다시 도전</button><button id="extraDone" class="quiet">테마 · 난이도 선택</button></dialog>';
  nav.after(panel);
  function silence(){for(const n of nodes){try{n.stop();}catch{}}nodes.clear();}
  function cleanup(){document.body.classList.remove('extra-playing');clearInterval(musicTimer);musicTimer=null;generation++;cancelAnimationFrame(frameId);state=null;silence();$('extraResult').close();}
@@ -24,7 +34,7 @@
  function drawMenu(){
   $('extraTitle').textContent=mode==='six'?'여섯 레인, 나만의 리듬.':'둥! 딱! 박자를 두드려요.';
   $('extraHelp').textContent=mode==='six'?'내려오는 노트를 판정선에서 S · D · F · J · K · L로 쳐요. 높은 난이도에는 동시치기도 등장해요.':'오른쪽에서 오는 빨강은 가운데(D · K), 파랑은 테두리(S · L)! 왼쪽 원에 맞춰 쳐요.';
-  $('extraLevels').innerHTML=levels.map((l,i)=>`<button class="extra-card" data-level="${i}"><span class="extra-number">0${i+1}</span><span class="eyebrow">${'●'.repeat(i+1)}${'○'.repeat(5-i)}</span><h3>${GameThemes.get(mode,i).name}</h3><p>${GameThemes.get(mode,i).story}</p><p><strong>${l.name}</strong> · ${l.desc}</p><b>${l.bpm} BPM · ${Math.round(64*60/l.bpm)}초</b><small>${records[mode+i]?`최고 ${records[mode+i].score.toLocaleString()}점 · ${records[mode+i].accuracy}%`:'새 기록에 도전하세요'}</small></button>`).join('');
+  $('extraLevels').innerHTML=levels.map((l,i)=>`<button class="extra-card" data-level="${i}"><span class="extra-number">0${i+1}</span><span class="eyebrow">${'●'.repeat(i+1)}${'○'.repeat(5-i)}</span><h3>${GameThemes.get(mode,i).name}</h3><p>${GameThemes.get(mode,i).story}</p><p><strong>${l.name}</strong> · ${l.desc}</p><b>${l.bpm} BPM · ${Math.round(64*60/l.bpm)}초 · 노트 ${chartFor(i,mode).length}개</b><small>${records[mode+i]?`최고 ${records[mode+i].score.toLocaleString()}점 · ${records[mode+i].accuracy}%`:'새 기록에 도전하세요'}</small></button>`).join('');
   panel.querySelectorAll('[data-level]').forEach(b=>{
    const id=+b.dataset.level;b.onclick=()=>begin(id);
    const art=document.createElement('canvas');art.width=320;art.height=170;art.className='friend-preview';art.setAttribute('aria-label',RhythmFriends.names[id]+(mode==='drum'?' 북 연주자':' 리듬 친구'));
@@ -38,13 +48,23 @@
  $('brand').onclick=()=>switchMode('pocket');
  function chartFor(level,type){
   const l=levels[level],notes=[];let index=0;
+  if(type==='six'){
+   const bars=sixBars[level];
+   for(let bar=0;bar<16;bar++)for(const p of bars[bar%bars.length]){
+    const lane=sixLanes[index%sixLanes.length],at=4+bar*4+p;
+    notes.push({beat:at,lane,done:false});
+    // 동시치기는 마디 첫 박에만, 난이도가 오를수록 자주 나온다.
+    if(level>=3&&p===0&&bar%sixChordBars[level]===0)notes.push({beat:at,lane:(lane+3)%6,done:false});
+    index++;
+   }
+   return notes.sort((a,b)=>a.beat-b.beat);
+  }
   for(let beat=4;beat<68;beat+=l.step){
    // Repeating musical phrases make the chart learnable rather than random.
-   const lane=type==='six'?[0,2,1,3,5,4,2,4,1,5,0,3][index%12]:(Math.floor(index/2)+Math.floor(index/7))%2;
+   const lane=(Math.floor(index/2)+Math.floor(index/7))%2;
    const at=beat+(level===2&&index%4===3?.5:0);
    notes.push({beat:at,lane,done:false});
-   if(type==='six'&&level>=3&&index%(level===3?8:4)===0)notes.push({beat:at,lane:(lane+3)%6,done:false});
-   if(level===5&&index%8>=6)notes.push({beat:at+.25,lane:type==='six'?(lane+1)%6:1-lane,done:false});
+   if(level===5&&index%8>=6)notes.push({beat:at+.25,lane:1-lane,done:false});
    index++;
   }
   return notes.sort((a,b)=>a.beat-b.beat);
@@ -105,7 +125,15 @@
  function finish(){clearInterval(musicTimer);musicTimer=null;const r=state;silence();const accuracy=Math.round((r.perfect+r.good*.65)/r.notes.length*100),key=mode+r.level;const rank=accuracy>=95?'S':accuracy>=85?'A':accuracy>=70?'B':'C';
   if(!records[key]||records[key].score<r.score){records[key]={score:r.score,accuracy};try{localStorage.setItem('rp-extra-best',JSON.stringify(records));}catch{}}
   $('extraResultTitle').textContent=`${rank} · ${GameThemes.get(mode,r.level).name} 완료!`;$('extraSummary').textContent=`${r.score.toLocaleString()}점 · 정확도 ${accuracy}% · 최대 ${r.max}콤보`;$('extraDetails').textContent=`PERFECT ${r.perfect} / GOOD ${r.good} / MISS ${r.miss}`;
-  state=null;$('extraRetry').onclick=()=>begin(r.level);$('extraResult').showModal();
+  state=null;$('extraRetry').onclick=()=>begin(r.level);
+  // 한 라운드가 끝나면 다음 난이도를 말풍선으로 안내한다.
+  const last=r.level>=levels.length-1,target=last?0:r.level+1,nextLevel=levels[target],nextTheme=GameThemes.get(mode,target);
+  $('extraTip').innerHTML=last
+   ?'마지막 라운드까지 완주했어요! <b>'+nextTheme.name+'</b>로 돌아가 기록을 갱신해 볼까요?'
+   :(accuracy>=70?'좋아요! 다음 라운드는 ':'조금 더 익히고 싶다면 다시 도전, 바로 가려면 ')+'<b>'+nextTheme.name+'</b> · '+nextLevel.name+' · '+nextLevel.bpm+' BPM<br>'+nextLevel.desc;
+  $('extraNext').textContent=last?'첫 라운드로 →':'다음 라운드 →';
+  $('extraNext').onclick=()=>{$('extraResult').close();begin(target);};
+  $('extraResult').showModal();
  }
  $('extraBack').onclick=menu;$('extraPause').onclick=pauseExtra;$('extraDone').onclick=menu;$('extraResult').addEventListener('cancel',e=>{e.preventDefault();menu();});$('extraSettings').onclick=()=>$('settingsDialog').showModal();
 })();
