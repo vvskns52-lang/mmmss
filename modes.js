@@ -16,7 +16,7 @@
  nav.innerHTML='<button data-game="pocket" aria-pressed="true">♪ 리듬 포켓</button><button data-game="six" aria-pressed="false">▥ 6키 리듬</button><button data-game="drum" aria-pressed="false">◉ 태고 리듬</button>';
  document.querySelector('header').after(nav);
  const panel=document.createElement('section');panel.id='extraMode';panel.hidden=true;
- panel.innerHTML='<div id="extraMenu"><div class="intro"><div><p class="eyebrow">RHYTHM POCKET / NEW PLAY</p><h1 id="extraTitle"></h1><p id="extraHelp"></p></div></div><div class="section-title"><h2>난이도 선택</h2><button class="quiet" id="extraSettings">타이밍 설정 ⚙</button></div><div id="extraLevels" class="extra-levels"></div></div><div id="extraPlay" hidden><div class="game-top"><button id="extraBack" class="quiet">← 난이도 선택</button><strong id="extraLabel"></strong><button id="extraPause" class="quiet">Ⅱ 일시정지</button></div><div class="stats"><div><small>SCORE</small><b id="extraScore">0</b></div><div><small>COMBO</small><b id="extraCombo">0</b></div><div><small>PROGRESS</small><b id="extraProgress">0%</b></div></div><div class="extra-arena"><canvas id="extraCanvas" width="900" height="540" aria-label="다가오는 노트와 판정선"></canvas><div id="extraFeedback" role="status">준비!</div></div><div id="extraPads" class="extra-pads"></div><p class="extra-hint" id="extraHint"></p></div><dialog id="extraResult"><p class="eyebrow">NICE RHYTHM!</p><h2 id="extraResultTitle"></h2><p id="extraSummary"></p><p id="extraDetails"></p><button id="extraRetry" class="primary">다시 도전</button><button id="extraDone" class="quiet">난이도 선택</button></dialog>';
+ panel.innerHTML='<div id="extraMenu"><div class="intro"><div><p class="eyebrow">RHYTHM POCKET / NEW PLAY</p><h1 id="extraTitle"></h1><p id="extraHelp"></p></div></div><div class="section-title"><h2>테마 · 난이도 선택</h2><button class="quiet" id="extraSettings">타이밍 설정 ⚙</button></div><div id="extraLevels" class="extra-levels"></div></div><div id="extraPlay" hidden><div class="game-top"><button id="extraBack" class="quiet">← 테마 · 난이도 선택</button><strong id="extraLabel"></strong><button id="extraPause" class="quiet">Ⅱ 일시정지</button></div><div class="stats"><div><small>SCORE</small><b id="extraScore">0</b></div><div><small>COMBO</small><b id="extraCombo">0</b></div><div><small>PROGRESS</small><b id="extraProgress">0%</b></div></div><div class="extra-arena"><canvas id="extraCanvas" width="900" height="540" aria-label="다가오는 노트와 판정선"></canvas><div id="extraFeedback" role="status">준비!</div></div><div id="extraPads" class="extra-pads"></div><p class="extra-hint" id="extraHint"></p></div><dialog id="extraResult"><p class="eyebrow">NICE RHYTHM!</p><h2 id="extraResultTitle"></h2><p id="extraSummary"></p><p id="extraDetails"></p><button id="extraRetry" class="primary">다시 도전</button><button id="extraDone" class="quiet">테마 · 난이도 선택</button></dialog>';
  nav.after(panel);
  function silence(){for(const n of nodes){try{n.stop();}catch{}}nodes.clear();}
  function cleanup(){document.body.classList.remove('extra-playing');clearInterval(musicTimer);musicTimer=null;generation++;cancelAnimationFrame(frameId);state=null;silence();$('extraResult').close();}
@@ -24,11 +24,11 @@
  function drawMenu(){
   $('extraTitle').textContent=mode==='six'?'여섯 레인, 나만의 리듬.':'둥! 딱! 박자를 두드려요.';
   $('extraHelp').textContent=mode==='six'?'내려오는 노트를 판정선에서 S · D · F · J · K · L로 쳐요. 높은 난이도에는 동시치기도 등장해요.':'오른쪽에서 오는 빨강은 가운데(D · K), 파랑은 테두리(S · L)! 왼쪽 원에 맞춰 쳐요.';
-  $('extraLevels').innerHTML=levels.map((l,i)=>`<button class="extra-card" data-level="${i}"><span class="extra-number">0${i+1}</span><span class="eyebrow">${'●'.repeat(i+1)}${'○'.repeat(5-i)}</span><h3>${l.name}</h3><p>${l.desc}</p><b>${l.bpm} BPM · ${Math.round(64*60/l.bpm)}초</b><small>${records[mode+i]?`최고 ${records[mode+i].score.toLocaleString()}점 · ${records[mode+i].accuracy}%`:'새 기록에 도전하세요'}</small></button>`).join('');
+  $('extraLevels').innerHTML=levels.map((l,i)=>`<button class="extra-card" data-level="${i}"><span class="extra-number">0${i+1}</span><span class="eyebrow">${'●'.repeat(i+1)}${'○'.repeat(5-i)}</span><h3>${GameThemes.get(mode,i).name}</h3><p>${GameThemes.get(mode,i).story}</p><p><strong>${l.name}</strong> · ${l.desc}</p><b>${l.bpm} BPM · ${Math.round(64*60/l.bpm)}초</b><small>${records[mode+i]?`최고 ${records[mode+i].score.toLocaleString()}점 · ${records[mode+i].accuracy}%`:'새 기록에 도전하세요'}</small></button>`).join('');
   panel.querySelectorAll('[data-level]').forEach(b=>{
    const id=+b.dataset.level;b.onclick=()=>begin(id);
    const art=document.createElement('canvas');art.width=320;art.height=170;art.className='friend-preview';art.setAttribute('aria-label',RhythmFriends.names[id]+(mode==='drum'?' 북 연주자':' 리듬 친구'));
-   b.prepend(art);const ctx=art.getContext('2d');RhythmFriends.draw(ctx,id,160,100,1.2,0,'happy',mode==='drum');
+   b.prepend(art);const ctx=art.getContext('2d'),theme=GameThemes.get(mode,id);GameThemes.backdrop(ctx,theme,0,320,170);RhythmFriends.draw(ctx,id,160,110,.85,0,'happy',mode==='drum');b.style.borderColor=theme.accent;art.setAttribute('aria-label',theme.name+' · '+theme.story);
   });
  }
  async function switchMode(next){cleanup();await home();mode=next;nav.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.game===mode)));$('menu').hidden=mode!=='pocket';panel.hidden=mode==='pocket';if(mode!=='pocket')menu();}
@@ -53,7 +53,7 @@
   if(token!==generation)return;
   const l=levels[level];state={level,notes:chartFor(level,mode),start:audio.currentTime+.2,spb:60/l.bpm,tick:0,score:0,combo:0,max:0,perfect:0,good:0,miss:0,paused:false,feedbackUntil:0};
   document.body.classList.add('extra-playing');window.scrollTo(0,0);
-  $('extraMenu').hidden=true;$('extraPlay').hidden=false;$('extraLabel').textContent=`${mode==='six'?'6키':'태고'} · ${l.name} · ${l.bpm} BPM`;$('extraPause').textContent='Ⅱ 일시정지';
+  $('extraMenu').hidden=true;$('extraPlay').hidden=false;$('extraLabel').textContent=`${GameThemes.get(mode,level).name} · ${l.name} · ${l.bpm} BPM`;$('extraPause').textContent='Ⅱ 일시정지';
   const labels=mode==='six'?['S','D','F','J','K','L']:['S · 딱','D · 둥','K · 둥','L · 딱'];
   $('extraPads').style.setProperty('--pads',labels.length);
   $('extraPads').innerHTML=labels.map((k,i)=>`<button data-pad="${mode==='six'?i:[1,0,0,1][i]}" class="${mode==='drum'?([0,3].includes(i)?'rim':'center'):''}">${k}</button>`).join('');
@@ -102,7 +102,7 @@
  function draw(beat){ArcadeVisuals.draw($('extraCanvas').getContext('2d'),mode,state,beat);}
  function finish(){clearInterval(musicTimer);musicTimer=null;const r=state;silence();const accuracy=Math.round((r.perfect+r.good*.65)/r.notes.length*100),key=mode+r.level;const rank=accuracy>=95?'S':accuracy>=85?'A':accuracy>=70?'B':'C';
   if(!records[key]||records[key].score<r.score){records[key]={score:r.score,accuracy};try{localStorage.setItem('rp-extra-best',JSON.stringify(records));}catch{}}
-  $('extraResultTitle').textContent=`${rank} · ${levels[r.level].name} 완료!`;$('extraSummary').textContent=`${r.score.toLocaleString()}점 · 정확도 ${accuracy}% · 최대 ${r.max}콤보`;$('extraDetails').textContent=`PERFECT ${r.perfect} / GOOD ${r.good} / MISS ${r.miss}`;
+  $('extraResultTitle').textContent=`${rank} · ${GameThemes.get(mode,r.level).name} 완료!`;$('extraSummary').textContent=`${r.score.toLocaleString()}점 · 정확도 ${accuracy}% · 최대 ${r.max}콤보`;$('extraDetails').textContent=`PERFECT ${r.perfect} / GOOD ${r.good} / MISS ${r.miss}`;
   state=null;$('extraRetry').onclick=()=>begin(r.level);$('extraResult').showModal();
  }
  $('extraBack').onclick=menu;$('extraPause').onclick=pauseExtra;$('extraDone').onclick=menu;$('extraResult').addEventListener('cancel',e=>{e.preventDefault();menu();});$('extraSettings').onclick=()=>$('settingsDialog').showModal();
