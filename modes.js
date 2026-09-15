@@ -31,7 +31,9 @@
    b.prepend(art);const ctx=art.getContext('2d'),theme=GameThemes.get(mode,id);GameThemes.backdrop(ctx,theme,0,320,170);RhythmFriends.draw(ctx,id,160,110,.85,0,'happy',mode==='drum');b.style.borderColor=theme.accent;art.setAttribute('aria-label',theme.name+' · '+theme.story);
   });
  }
- async function switchMode(next){cleanup();await home();mode=next;nav.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.game===mode)));$('menu').hidden=mode!=='pocket';panel.hidden=mode==='pocket';if(mode!=='pocket')menu();}
+ let switchGeneration=0;
+ async function switchMode(next){const token=++switchGeneration;window.Dokkaebi?.stop();cleanup();await home();if(token!==switchGeneration)return;mode=next;nav.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.game===mode)));$('menu').hidden=mode!=='pocket';panel.hidden=!['six','drum'].includes(mode);if(mode==='dokkaebi')window.Dokkaebi.open();else if(mode!=='pocket')menu();}
+ window.RhythmModes={switchMode};
  nav.querySelectorAll('button').forEach(b=>b.onclick=()=>switchMode(b.dataset.game));
  $('brand').onclick=()=>switchMode('pocket');
  function chartFor(level,type){
