@@ -24,7 +24,11 @@
   $('extraTitle').textContent=mode==='six'?'여섯 레인, 나만의 리듬.':'둥! 딱! 박자를 두드려요.';
   $('extraHelp').textContent=mode==='six'?'내려오는 노트를 판정선에서 S · D · F · J · K · L로 쳐요. 높은 난이도에는 동시치기도 등장해요.':'오른쪽에서 오는 빨강은 가운데(D · K), 파랑은 테두리(S · L)! 왼쪽 원에 맞춰 쳐요.';
   $('extraLevels').innerHTML=levels.map((l,i)=>`<button class="extra-card" data-level="${i}"><span class="extra-number">0${i+1}</span><span class="eyebrow">${'●'.repeat(i+1)}${'○'.repeat(5-i)}</span><h3>${l.name}</h3><p>${l.desc}</p><b>${l.bpm} BPM · ${Math.round(64*60/l.bpm)}초</b><small>${records[mode+i]?`최고 ${records[mode+i].score.toLocaleString()}점 · ${records[mode+i].accuracy}%`:'새 기록에 도전하세요'}</small></button>`).join('');
-  panel.querySelectorAll('[data-level]').forEach(b=>b.onclick=()=>begin(+b.dataset.level));
+  panel.querySelectorAll('[data-level]').forEach(b=>{
+   const id=+b.dataset.level;b.onclick=()=>begin(id);
+   const art=document.createElement('canvas');art.width=320;art.height=170;art.className='friend-preview';art.setAttribute('aria-label',RhythmFriends.names[id]+(mode==='drum'?' 북 연주자':' 리듬 친구'));
+   b.prepend(art);const ctx=art.getContext('2d');RhythmFriends.draw(ctx,id,160,100,1.2,0,'happy',mode==='drum');
+  });
  }
  async function switchMode(next){cleanup();await home();mode=next;nav.querySelectorAll('button').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.game===mode)));$('menu').hidden=mode!=='pocket';panel.hidden=mode==='pocket';if(mode!=='pocket')menu();}
  nav.querySelectorAll('button').forEach(b=>b.onclick=()=>switchMode(b.dataset.game));
@@ -56,7 +60,7 @@
   frame();
  }
  function feedback(message){$('extraFeedback').textContent=message;if(state)state.feedbackUntil=audio.currentTime+.5;}
- function judge(note,result){note.done=true;state[result]++;if(result==='miss')state.combo=0;else{state.combo++;state.max=Math.max(state.max,state.combo);state.score+=result==='perfect'?1000:650;}feedback(result.toUpperCase());}
+ function judge(note,result){note.done=true;state[result]++;state.reactions??={};state.reactions[note.lane]={beat:(audio.currentTime-state.start)/state.spb,mood:result==='miss'?'sad':'happy'};if(result==='miss')state.combo=0;else{state.combo++;state.max=Math.max(state.max,state.combo);state.score+=result==='perfect'?1000:650;}feedback(result.toUpperCase());}
  function hit(lane){
   if(!state||state.paused)return;
   const time=audio.currentTime-state.start-offset/1000;
@@ -84,12 +88,22 @@
  function draw(beat){
   const c=$('extraCanvas').getContext('2d');c.fillStyle='#171d35';c.fillRect(0,0,900,540);
   const colors=['#f2ba58','#81d7d3','#ed8d9e','#ed8d9e','#81d7d3','#f2ba58'];
+  const pose=lane=>{const r=state.reactions?.[lane],age=r?beat-r.beat:99;return {mood:age<1?r.mood:'happy',bounce:age>=0&&age<.8&&r.mood==='happy'?Math.sin(age/.8*Math.PI)*12:Math.max(0,Math.sin(beat*Math.PI*2))*2};};
   c.font='bold 20px sans-serif';c.textAlign='center';
   if(mode==='six'){
-   for(let i=0;i<6;i++){c.fillStyle=i%2?'#252c49':'#202640';c.fillRect(90+i*120,0,118,540);c.fillStyle=colors[i];c.fillText(['S','D','F','J','K','L'][i],150+i*120,510);}
+   for(let i=0;i<6;i++){c.fillStyle=i%2?'#252c49':'#202640';c.fillRect(90+i*120,0,118,540);c.fillStyle=colors[i];c.fillText(['S','D','F','J','K','L'][i],150+i*120,530);}
    c.fillStyle='#fff5da';c.fillRect(90,458,718,4);
    for(const n of state.notes){const y=460-(n.beat-beat)*125;if(n.done||y< -20||y>490)continue;c.fillStyle=colors[n.lane];c.fillRect(98+n.lane*120,y-9,102,18);c.fillStyle='#ffffff90';c.fillRect(102+n.lane*120,y-7,94,3);}
+   // A separate strip keeps friends below the hit line and out of the note path.
+   c.fillStyle='#171d35';c.fillRect(90,472,718,68);
+   for(let i=0;i<6;i++){const p=pose(i);RhythmFriends.draw(c,i,150+i*120,500,.43,p.bounce,p.mood);c.fillStyle=colors[i];c.fillText(['S','D','F','J','K','L'][i],150+i*120,536);}
   }else{
+   c.fillStyle='#283c4c';c.fillRect(0,0,900,180);
+   for(let i=0;i<9;i++){c.fillStyle=['#eec875','#f0a7ab','#88cbb9'][i%3];c.beginPath();c.ellipse(50+i*100,45+(i%2)*9,15,20,0,0,Math.PI*2);c.fill();}
+   const a=pose(0),b=pose(1);
+   RhythmFriends.draw(c,state.level,330,130,.86,a.bounce,a.mood,true);
+   RhythmFriends.draw(c,(state.level+1)%6,565,130,.86,b.bounce,b.mood,true);
+   c.font='bold 15px sans-serif';c.fillStyle='#ffe7d0';c.fillText('둥! 가운데 친구',330,190);c.fillText('딱! 테두리 친구',565,190);c.font='bold 20px sans-serif';
    c.fillStyle='#303954';c.fillRect(0,195,900,150);c.strokeStyle='#fff5da';c.lineWidth=5;c.beginPath();c.arc(140,270,49,0,Math.PI*2);c.stroke();
    c.fillStyle='#f8edda';c.fillText('여기서 치기',140,385);
    for(const n of state.notes){const x=140+(n.beat-beat)*160;if(n.done||x< -40||x>950)continue;c.fillStyle=n.lane===0?'#ff817e':'#73d4ed';c.beginPath();c.arc(x,270,28,0,Math.PI*2);c.fill();c.fillStyle='#172039';c.fillText(n.lane===0?'둥':'딱',x,277);}
